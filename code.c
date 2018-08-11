@@ -2,9 +2,10 @@
 **===========================================================================
 **
 **  Pinos Utilizados
-**      PA0 = clock do 4017, PA1 = reset do 4017
-**	PB0 = seg a, PB1 = seg b, PB2 = seg c, PB3 = seg d, PB4 = seg e, PB5 = seg f, PB6 = seg g
-**	PC0 = b1, PC1 = b2, PC2 = b3
+**  PB0 = seg a, PB1 = seg b, PB2 = seg c, PB3 = seg d, PB4 = seg e, PB5 = seg f, PB6 = seg g
+**  Transistores
+**  PA0 = T0, PA1 = T1, PA4 = T2, PA5 = T3
+**
 **===========================================================================
 */
 
@@ -23,7 +24,16 @@
 #define cathode_8                    ((uint32_t)0X07f)
 #define cathode_9                    ((uint32_t)0X06f)
 
-#define TEMPO_TROCA 60000				//quantidade de milisegundos
+#define um 0
+#define dm 1
+#define uh 2
+#define dh 3
+
+uint16_t cathode[]={cathode_0,cathode_1,cathode_2,cathode_3,cathode_4,cathode_5,cathode_6,cathode_7,cathode_8,cathode_9};
+
+uint16_t seletor[]={GPIO_ODR_ODR_0,GPIO_ODR_ODR_1,GPIO_ODR_ODR_4,GPIO_ODR_ODR_5};
+
+#define TEMPO_TROCA 600				//quantidade de milisegundos
 
 /**
 **===========================================================================
@@ -34,89 +44,42 @@
 */
 int main(void)
 {
-	uint16_t timerMs = 0;
+ 	uint16_t timerMs = 0;
 	uint16_t FtimerS = 0;
-	uint16_t dh = 0x03f;				//dh = dezena hora, uh = unidade hora, dm = dezena minuto, um = unidade minuto
-	uint16_t uh = 0x03f;				//são usados para a contagem numérica do tempo
-	uint16_t dm = 0x03f;
-	uint16_t um = 0x03f;
-	uint16_t cdh = 0x03f;				//cdh = convertido dezena hora, cuh, cdm, cum
-	uint16_t cuh = 0x03f;				//são usados para converter os valores numéricos para valores 7-seg
-	uint16_t cdm = 0x03f;
-	uint16_t cum = 0x03f;
 	uint16_t i = 0;
-	uint16_t j[] = {cdh,cuh,cdm,cum};
+	uint16_t display[4],valor[4]={0,0,0,0};
 
 	//Enabling GPIOS clock
-		RCC->AHB1ENR=0X00000087;
+		RCC->AHB1ENR=RCC_AHB1ENR_GPIOAEN|RCC_AHB1ENR_GPIOBEN;
 
 	//Enabling TIM10 clock
 		RCC->APB2ENR|=RCC_APB2ENR_TIM10EN;
 
 	//Setting UIF overflow time
-		TIM10->PSC = 199;
+		TIM10->PSC = 99;
 		TIM10->ARR = 79;
 		TIM10->CR1|=TIM_CR1_CEN;//starts
 
 	//habilita os pinos do GPIOA como saídas digitais
-		GPIOA->MODER|=0x5;				//controla o contador habilitador dos displays
+		GPIOA->MODER &=~ (GPIO_MODER_MODER0|GPIO_MODER_MODER1|GPIO_MODER_MODER4|GPIO_MODER_MODER5);
+		GPIOA->MODER|=(GPIO_MODER_MODER0_0|GPIO_MODER_MODER1_0|GPIO_MODER_MODER4_0|GPIO_MODER_MODER5_0);//controla os transistores
 
 	//habilita os pinos do GPIOB como saídas digitais
-		GPIOB->MODER=0x1555;			        //controla os segmentos dos catodos
-
-	//habilita os pinos do GPIOC como entradas digitais
-		GPIOC->MODER=0x0;                                //lê os botões
+		GPIOB->MODER &=~ (GPIO_MODER_MODER0|GPIO_MODER_MODER1|GPIO_MODER_MODER2|GPIO_MODER_MODER3|GPIO_MODER_MODER4|GPIO_MODER_MODER5|GPIO_MODER_MODER6);
+	    GPIOB->MODER|=(GPIO_MODER_MODER0_0|GPIO_MODER_MODER1_0|GPIO_MODER_MODER2_0|GPIO_MODER_MODER3_0|GPIO_MODER_MODER4_0|GPIO_MODER_MODER5_0|GPIO_MODER_MODER6_0);//controla os segmentos dos catodos
 
   while (1)
   {
-	  //Conversão número -> número no catodo
-	  if(dh == 0) cdh = cathode_0;
-	  else if(dh == 1) cdh = cathode_1;
-	  else if(dh == 2) cdh = cathode_2;
-	  if(uh == 0) cuh = cathode_0;
-	  else if(uh == 1) cuh = cathode_1;
-	  else if(uh == 2) cuh = cathode_2;
-	  else if(uh == 3) cuh = cathode_3;
-	  else if(uh == 4) cuh = cathode_4;
-	  else if(uh == 5) cuh = cathode_5;
-	  else if(uh == 6) cuh = cathode_6;
-	  else if(uh == 7) cuh = cathode_7;
-	  else if(uh == 8) cuh = cathode_8;
-	  else if(uh == 9) cuh = cathode_9;
-	  if(dm == 0) cdm = cathode_0;
-	  else if(dm == 1) cdm = cathode_1;
-	  else if(dm == 2) cdm = cathode_2;
-	  else if(dm == 3) cdm = cathode_3;
-	  else if(dm == 4) cdm = cathode_4;
-	  else if(dm == 5) cdm = cathode_5;
-	  if(um == 0) cum = cathode_0;
-	  else if(um == 1) cum = cathode_1;
-	  else if(um == 2) cum = cathode_2;
-	  else if(um == 3) cum = cathode_3;
-	  else if(um == 4) cum = cathode_4;
-	  else if(um == 5) cum = cathode_5;
-	  else if(um == 6) cum = cathode_6;
-	  else if(um == 7) cum = cathode_7;
-	  else if(um == 8) cum = cathode_8;
-	  else if(um == 9) cum = cathode_9;
+	  display[i]=cathode[valor[i]];
 
-	  j[3] = cdh;									//update j[] values
-	  j[2] = cuh;
-	  j[1] = cdm;
-	  j[0] = cum;
-
-	  if(i == 0){
-		  GPIOA->ODR |= 0x2;						//reseta o 4017
-	  	  GPIOB->ODR = j[i];						//joga info nos displays
-	  }
-	  else{
-		  GPIOB->ODR = j[i];						//joga info nos displays
-	  }
+	  GPIOB->ODR &=~ (GPIO_ODR_ODR_0|GPIO_ODR_ODR_1|GPIO_ODR_ODR_2|GPIO_ODR_ODR_3|GPIO_ODR_ODR_4|GPIO_ODR_ODR_5|GPIO_ODR_ODR_6);
+	  GPIOA->ODR &=~ (GPIO_ODR_ODR_0|GPIO_ODR_ODR_1|GPIO_ODR_ODR_4|GPIO_ODR_ODR_5);
+	  GPIOA->ODR |= seletor[i];
+	  GPIOB->ODR |= display[i];
 
 	  if(TIM10->SR&TIM_SR_UIF){						//verifica o overflow
 
 	      TIM10->SR  =~ TIM_SR_UIF;				 	//zera o contador de tempo
-	  	  GPIOA->ODR &=~ 0x3;			 			//joga o reset para zero e garante o clock em zero
 
 	  	  timerMs++;
 
@@ -124,42 +87,38 @@ int main(void)
 	  		  timerMs = 0;
 	  		  FtimerS = 1;
 	  	  }
-
 	  	  if (i == 3){
 	  		  i = 0;
 	  	  }
-	  	  else{
-	  		  GPIOA->ODR |= 0x1;
-	  		  GPIOA->ODR &=~ 0x1;
+	  	  else
 	  		  i++;
-	  	  }
 	  }
 
 	  if(FtimerS){
 		  FtimerS = 0;
 
-		  if(um < 9){
-			  um++;
+		  if(valor[um] < 9){
+			  valor[um]++;
 		  }
 	  	  else{
-	  		  um = 0;
-	  		  if(dm < 5){
-	  			  dm++;
+	  		valor[um] = 0;
+	  		  if(valor[dm] < 5){
+	  			valor[dm]++;
 	  		  }
 	  		  else{
-	  			  dm = 0;
-	  			  if(uh < 9 && dh < 2){
-	  				  uh++;
+	  			valor[dm] = 0;
+	  			  if(valor[uh] < 9 && valor[dh] < 2){
+	  				valor[uh]++;
 	 	  		  }
-	  			  else if(uh < 3 && dh == 2){
-	  				  uh++;
+	  			  else if(valor[uh] < 3 && valor[dh] == 2){
+	  				valor[uh]++;
 	  			  }
 	  			  else{
-	  				  uh = 0;
-	  				  if(dh < 2)
-	  					  dh++;
+	  				valor[uh] = 0;
+	  				  if(valor[dh] < 2)
+	  					valor[dh]++;
 	  				  else
-	  					  dh = 0;
+	  					valor[dh] = 0;
 	  			  }
 	  		  }
 	  	  }
